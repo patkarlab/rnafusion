@@ -92,6 +92,7 @@ In rnafusion the full-sized test includes reference building and fusion detectio
 3. Copying all the output files from their respective folders to the Output directory.
 4. Generating an input file (tsv) for FusViz.
 5. Running metafusion.
+1. Dashboard creation
 
 For this workflow, following programs need to be installed and their complete paths need to be added in the params section of the `$PWD/scripts/custom.config`  
 
