@@ -4,43 +4,47 @@ nextflow.enable.dsl=2
 log.info """
 STARTING PIPELINE
 =*=*=*=*=*=*=*=*=
-
 Sample list: ${params.input}
 """
 
-process coverage {
+vardict = params.vardict
+
+include { VAR_RNA } from '../workflows/var_rna.nf'
+include { ANNOVAR as ANNOVAR_VARDICT } from '../modules/local/annovar/annotate/main'
+include { FORMAT_VARDICT } from '../modules/local/python/format_vardict/main'
+
+process COUNTS {
+	tag "${sampleId}"
+	publishDir "${PWD}/Final_Output/${sampleId}/", mode: 'copy'
 	input:
-		tuple val(sampleId), path(read1)
+		tuple val(sampleId), path(bedfile), path(squid_bam)
 	output:
-		tuple val (sampleId), file ("${sampleId}.bed")
+		tuple val (sampleId), file("${sampleId}.counts_squid.bed")
 	script:
 	"""
-	#${params.bedtools} bamtobed -i $PWD/fusioninspector/${sampleId}.consolidated.bam > ${sampleId}.bed
-	#${params.bedtools} bamtobed -i $PWD/star_for_arriba/${sampleId}.Aligned.out.bam | awk 'BEGIN{OFS="\t"}{ \$1="chr"\$1; print }' > ${sampleId}.bed
-	#${params.bedtools} bamtobed -i $PWD/picard/${sampleId}.bam | awk 'BEGIN{OFS="\t"}{ \$1="chr"\$1; print }' > ${sampleId}.bed
-	${params.bedtools} bamtobed -i $PWD/star_for_squid/${sampleId}.Aligned.sortedByCoord.out.bam | awk 'BEGIN{OFS="\t"}{ \$1="chr"\$1; print }' > ${sampleId}.bed
-	#${params.bedtools} bamtobed -i $PWD/star_for_starfusion/${sampleId}.Aligned.sortedByCoord.out.bam | awk 'BEGIN{OFS="\t"}{ \$1="chr"\$1; print }' > ${sampleId}.bed
-	#${params.bedtools} bamtobed -i $PWD/samtools/${sampleId}_chimeric.bam | awk 'BEGIN{OFS="\t"}{ \$1="chr"\$1; print }' > ${sampleId}.bed
-	${params.bedtools} coverage -counts -a ${read1} -b ${sampleId}.bed > $PWD/Final_Output/${sampleId}/${sampleId}.counts_squid.bed
+	${params.bedtools} coverage -counts -a ${bedfile} -b ${squid_bam} > ${sampleId}.counts_squid.bed
 	"""
 }
 
-process bam {
+process BAM {
+	tag "${sampleId}"
+	label 'process_inter'
+	publishDir "${PWD}/Final_Output/${sampleId}/", mode: 'copy'
 	input:
-		tuple val(sampleId), path(read1)
+		tuple val(sampleId), path(bedfile), path(squid_bam)
 	output:
-		tuple val (sampleId), file ("*")
+		tuple val (sampleId), file ("${sampleId}.sorted.bam"), file ("${sampleId}.sorted.bam.bai")
 	script:
 	"""
-	${params.samtools} sort $PWD/star_for_squid/${sampleId}.Aligned.sortedByCoord.out.bam -o ${sampleId}.sorted.bam
-	${params.samtools} index ${sampleId}.sorted.bam
-	cp ${sampleId}.sorted.bam* $PWD/Final_Output/${sampleId}/
+	${params.samtools} sort -@ ${task.cpus} ${squid_bam} -o ${sampleId}.sorted.bam
+	${params.samtools} index -@ ${task.cpus} ${sampleId}.sorted.bam
 	"""
 }
 
-process file_copy {
+process FILE_COPY {
+	tag "${sampleId}"
 	input:
-		tuple val(sampleId), file(sampleId_bed)
+		tuple val (sampleId), file(counts_squid), file(vardict_csv), file(haplotypecaller_csv)
 	output:
 		val (sampleId)
 	script:
@@ -82,13 +86,13 @@ process file_copy {
 		cp -r ${PWD}/fusioninspector/${sampleId}.fusion_inspector_web.html ${PWD}/Final_Output/${sampleId}/
 	fi
 
-	python3 ${params.merge_csvs_script} ${sampleId} ${PWD}/Final_Output/${sampleId}/${sampleId}.xlsx ${PWD}/Final_Output/${sampleId}/${sampleId}.counts_squid.bed ${PWD}/Final_Output/${sampleId}/${sampleId}.arriba.fusions.tsv ${PWD}/Final_Output/${sampleId}/${sampleId}.squid.fusions.annotated.txt ${PWD}/Final_Output/${sampleId}/${sampleId}.pizzly.txt ${PWD}/Final_Output/${sampleId}/${sampleId}.fusioncatcher.fusion-genes.txt ${PWD}/Final_Output/${sampleId}/${sampleId}.fusioncatcher.summary.txt ${PWD}/Final_Output/${sampleId}/${sampleId}.starfusion.fusion_predictions.tsv
+	python3 ${params.merge_csvs_script} ${sampleId} ${PWD}/Final_Output/${sampleId}/${sampleId}.xlsx ${PWD}/Final_Output/${sampleId}/${sampleId}.counts_squid.bed ${PWD}/Final_Output/${sampleId}/${sampleId}.arriba.fusions.tsv ${PWD}/Final_Output/${sampleId}/${sampleId}.squid.fusions.annotated.txt ${PWD}/Final_Output/${sampleId}/${sampleId}.pizzly.txt ${PWD}/Final_Output/${sampleId}/${sampleId}.fusioncatcher.fusion-genes.txt ${PWD}/Final_Output/${sampleId}/${sampleId}.fusioncatcher.summary.txt ${PWD}/Final_Output/${sampleId}/${sampleId}.starfusion.fusion_predictions.tsv ${vardict_csv} ${haplotypecaller_csv}
+
 	"""
 }
 
-process fusviz_all_samples {
+process FUSVIZ_ALL_SAMPLES {
 	publishDir "${PWD}/Final_Output/", mode: 'copy', pattern: 'sv_output'
-
 	input:
 		val all_samples 
 
@@ -123,9 +127,8 @@ process fusviz_all_samples {
 	"""
 }
 
-
-
-process cff_filegen {
+process CFF_FILEGEN {
+	tag "${sampleId}"
 	conda '/home/miniconda3/envs/new_base'
 	input:
 		val(sampleId)
@@ -137,7 +140,8 @@ process cff_filegen {
 	"""
 }
 
-process metafusion {
+process METAFUSION {
+	tag "${sampleId}"
 	conda '/home/miniconda3/envs/new_base'
 	errorStrategy 'ignore'
 	publishDir "${PWD}/Final_Output/${sampleId}/", mode: 'copy', pattern: '*_metafuse_hg38.xlsx'
@@ -180,16 +184,55 @@ process metafusion {
 	"""
 }
 
-process dashboard {
+process DASHBOARD {
+	tag "${sampleId}"
+	publishDir "${PWD}/Final_Output/${sampleId}/", mode: 'copy'
 	input:
 		tuple val(sampleId)
 	output:
-		tuple val (sampleId)
+		tuple val (sampleId), file ("${sampleId}_dashboard.html")
 	script:
 	"""
-	python3 /home/diagnostics/pipelines/nf-core/rnafusion/bin/generate_Illumina_dashboard_v31.py --fusions ${PWD}/Final_Output/${sampleId}/${sampleId}.xlsx --cytoband ${params.cytoBand} --output ${PWD}/Final_Output/${sampleId}/${sampleId}_dashboard.html
+	python3 /home/diagnostics/pipelines/nf-core/rnafusion/bin/generate_Illumina_dashboard_v31.py --fusions ${PWD}/Final_Output/${sampleId}/${sampleId}.xlsx --cytoband ${params.cytoBand} --output ${sampleId}_dashboard.html
 	"""
 }
+
+process VARDICT {
+	tag "${sampleId}"
+	label 'process_inter'
+	input:
+		tuple val (sampleId), file (sorted_bam), file (sorted_bam_bai), path(bedfile), path(squid_bam)
+	output:
+		tuple val(sampleId), file ("${sampleId}.vardict.vcf.gz"), file("${sampleId}.vardict.vcf.gz.tbi")
+	script:
+	"""
+	VarDict -G ${params.genome} -f 0.05 -N ${sampleId} -b ${sorted_bam} -c 1 -S 2 -E 3 -g 4 -th ${task.cpus} -L 10000000 --verbose ${bedfile} | teststrandbias.R | var2vcf_valid.pl | gzip > ${sampleId}.vardict.vcf.gz
+	touch ${sampleId}.vardict.vcf.gz.tbi
+	"""
+}
+
+process VEP {		
+	tag "${sampleId}"
+	label 'process_inter'
+	publishDir "${PWD}/Final_Output/${sampleId}/", mode: 'copy'
+	input:
+		tuple val (sampleId), file(vardict_vcf), file(vardict_vcf_index)
+	output:
+		tuple val (sampleId), file ("${sampleId}_vardict_vep.txt")
+	script:
+	"""
+	vep -i ${vardict_vcf} --fasta ${params.genome} --cache_version 113 -o ${sampleId}_vep.txt --offline --fork ${task.cpus} --tab --force_overwrite --symbol --protein --af --max_af  --no_check_alleles \
+	--sift b --variant_class --canonical --allele_number --hgvs --shift_hgvs 1 --af_1kg --af_gnomadg --pubmed
+
+	filter_vep -i ${sampleId}_vep.txt -o ${sampleId}_filtered.txt --filter "(CANONICAL is YES) and (AF < 0.01 or not AF)" --force_overwrite
+	grep -v "##" ${sampleId}_filtered.txt > ${sampleId}_vep_delheaders.txt
+	${params.extract_vep} ${sampleId}_vep_delheaders.txt ${sampleId}.extractedvepdelheaders.csv
+	${params.extract_vaf} ${vardict_vcf} ${sampleId}.extracted.csv
+	${params.mergeVardictVep} ${sampleId}.extracted.csv ${sampleId}.extractedvepdelheaders.csv ${sampleId}_vardict_vep.txt
+	"""
+}
+
+
 workflow COVERAGE {
 	Channel
 		.fromPath(params.input)
@@ -197,13 +240,20 @@ workflow COVERAGE {
 		.set { samples_ch }
 
 	main:
-	coverage(samples_ch)
-	bam(samples_ch)
-	file_copy(coverage.out)
-	fusviz_all_samples(file_copy.out.collect())
-	cff_filegen(file_copy.out)
-	metafusion(cff_filegen.out)
-	dashboard(file_copy.out)
+	COUNTS(samples_ch)
+	BAM(samples_ch)
+	haplotypecaller_csv = VAR_RNA(samples_ch)
+	VARDICT(BAM.out.join(samples_ch))
+	//VEP(VARDICT.out)
+	ANNOVAR_VARDICT(VARDICT.out, vardict)
+	FORMAT_VARDICT(ANNOVAR_VARDICT.out)
+	FILE_COPY(COUNTS.out.join(FORMAT_VARDICT.out.join(haplotypecaller_csv)))
+	FUSVIZ_ALL_SAMPLES(FILE_COPY.out.collect())
+	CFF_FILEGEN(FILE_COPY.out)
+	METAFUSION(CFF_FILEGEN.out)
+	DASHBOARD(FILE_COPY.out)
+
+
 }
 workflow.onComplete {
 	log.info ( workflow.success ? "\n\nDone! Output in the 'Final_Output' directory \n" : "Oops .. something went wrong" )
