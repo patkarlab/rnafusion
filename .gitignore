@@ -39,3 +39,7 @@ references/
 scriptlog
 scriptlog.coverage
 *.out
+CHANGELOG.md
+CITATIONS.md
+CODE_OF_CONDUCT.md
+LICENSE
