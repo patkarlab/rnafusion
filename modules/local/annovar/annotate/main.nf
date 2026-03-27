@@ -2,7 +2,7 @@ process ANNOVAR {
 	tag "${Sample}"
 	label 'process_inter'
 	input:
-		tuple val (Sample), path(Vcf), path(VcfTbi)
+		tuple val (Sample), path(Vcf)
 		val(variant_caller)
 	output:
 		tuple val (Sample), path("${Sample}_${variant_caller}.out.hg38_multianno.csv")

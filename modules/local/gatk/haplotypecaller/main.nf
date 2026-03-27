@@ -7,7 +7,7 @@ process HAPLOTYPECALLER {
 		path (GenInd)
 		path (GenDict)
 	output:
-		tuple val(Sample), file("${Sample}.vcf.gz"), file("${Sample}.vcf.gz.tbi")
+		tuple val(Sample), file("${Sample}.vcf.gz")
 	script:
 	"""
 	gatk HaplotypeCaller -I ${final_bam} -R ${GenFile} -L ${bedfile} -O ${Sample}.vcf.gz \

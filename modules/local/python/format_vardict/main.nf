@@ -7,6 +7,6 @@ process FORMAT_VARDICT {
 		tuple val (Sample), file("${Sample}_vardict.csv")
 	script:
 	"""
-	${params.format_vardict} ${multianno_csv} ${Sample}_vardict.csv
+	format_vardict.py ${multianno_csv} ${Sample}_vardict.csv
 	"""
 }

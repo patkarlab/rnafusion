@@ -8,10 +8,19 @@ Sample list: ${params.input}
 """
 
 vardict = params.vardict
+deepvariant = params.deepvariant
+mutect2 = params.mutect2
+genome_loc = file("${params.genome}", checkIfExists: true)
+index_file = file("${params.genome}.fai", checkIfExists: true)
+dict_file = file("${params.genome_dict}", checkIfExists: true)
+known_SNPs = file("${params.dbsnp}", checkIfExists: true)
+known_SNPs_index = file("${params.dbsnp_index}", checkIfExists: true)
 
 include { VAR_RNA } from '../workflows/var_rna.nf'
-include { ANNOVAR as ANNOVAR_VARDICT } from '../modules/local/annovar/annotate/main'
+include { ANNOVAR as ANNOVAR_VARDICT ; ANNOVAR as ANNOVAR_DEEPVARIANT ; ANNOVAR as ANNOVAR_MUTECT2 } from '../modules/local/annovar/annotate/main'
 include { FORMAT_VARDICT } from '../modules/local/python/format_vardict/main'
+include { FORMAT_MUTECT2 } from '../modules/local/python/format_mutect2/main'
+
 
 process COUNTS {
 	tag "${sampleId}"
@@ -22,7 +31,7 @@ process COUNTS {
 		tuple val (sampleId), file("${sampleId}.counts_squid.bed")
 	script:
 	"""
-	${params.bedtools} coverage -counts -a ${bedfile} -b ${squid_bam} > ${sampleId}.counts_squid.bed
+	bedtools coverage -counts -a ${bedfile} -b ${squid_bam} > ${sampleId}.counts_squid.bed
 	"""
 }
 
@@ -36,15 +45,15 @@ process BAM {
 		tuple val (sampleId), file ("${sampleId}.sorted.bam"), file ("${sampleId}.sorted.bam.bai")
 	script:
 	"""
-	${params.samtools} sort -@ ${task.cpus} ${squid_bam} -o ${sampleId}.sorted.bam
-	${params.samtools} index -@ ${task.cpus} ${sampleId}.sorted.bam
+	samtools sort -@ ${task.cpus} ${squid_bam} -o ${sampleId}.sorted.bam
+	samtools index ${sampleId}.sorted.bam
 	"""
 }
 
 process FILE_COPY {
 	tag "${sampleId}"
 	input:
-		tuple val (sampleId), file(counts_squid), file(vardict_csv), file(haplotypecaller_csv)
+		tuple val (sampleId), file(counts_squid), file(vardict_csv), file(haplotypecaller_csv), file(mutect2_csv)
 	output:
 		val (sampleId)
 	script:
@@ -70,7 +79,7 @@ process FILE_COPY {
 	fi
 
 	if [ -f ${PWD}/fusioncatcher/${sampleId}.fusioncatcher.summary.txt ]; then
-		${params.sed_sh} ${PWD}/fusioncatcher/${sampleId}.fusioncatcher.summary.txt
+		sed.sh ${PWD}/fusioncatcher/${sampleId}.fusioncatcher.summary.txt
 		cp ${PWD}/fusioncatcher/${sampleId}.fusioncatcher.summary.txt ${PWD}/Final_Output/${sampleId}/
 	fi
 
@@ -86,8 +95,17 @@ process FILE_COPY {
 		cp -r ${PWD}/fusioninspector/${sampleId}.fusion_inspector_web.html ${PWD}/Final_Output/${sampleId}/
 	fi
 
-	python3 ${params.merge_csvs_script} ${sampleId} ${PWD}/Final_Output/${sampleId}/${sampleId}.xlsx ${PWD}/Final_Output/${sampleId}/${sampleId}.counts_squid.bed ${PWD}/Final_Output/${sampleId}/${sampleId}.arriba.fusions.tsv ${PWD}/Final_Output/${sampleId}/${sampleId}.squid.fusions.annotated.txt ${PWD}/Final_Output/${sampleId}/${sampleId}.pizzly.txt ${PWD}/Final_Output/${sampleId}/${sampleId}.fusioncatcher.fusion-genes.txt ${PWD}/Final_Output/${sampleId}/${sampleId}.fusioncatcher.summary.txt ${PWD}/Final_Output/${sampleId}/${sampleId}.starfusion.fusion_predictions.tsv ${vardict_csv} ${haplotypecaller_csv}
-
+	merge-csv_v3.py ${sampleId} ${PWD}/Final_Output/${sampleId}/${sampleId}.xlsx \
+		${PWD}/Final_Output/${sampleId}/${sampleId}.counts_squid.bed \
+		${PWD}/Final_Output/${sampleId}/${sampleId}.arriba.fusions.tsv \
+		${PWD}/Final_Output/${sampleId}/${sampleId}.squid.fusions.annotated.txt \
+		${PWD}/Final_Output/${sampleId}/${sampleId}.pizzly.txt \
+		${PWD}/Final_Output/${sampleId}/${sampleId}.fusioncatcher.fusion-genes.txt \
+		${PWD}/Final_Output/${sampleId}/${sampleId}.fusioncatcher.summary.txt \
+		${PWD}/Final_Output/${sampleId}/${sampleId}.starfusion.fusion_predictions.tsv \
+		${vardict_csv} \
+		${haplotypecaller_csv} \
+		${mutect2_csv}
 	"""
 }
 
@@ -129,59 +147,94 @@ process FUSVIZ_ALL_SAMPLES {
 
 process CFF_FILEGEN {
 	tag "${sampleId}"
-	conda '/home/miniconda3/envs/new_base'
 	input:
 		val(sampleId)
 	output:
 		tuple val (sampleId), file ("*.cff")	
 	script:
 	"""
-	${params.cffgen} hg38 hg37 ${sampleId} ${PWD}/Final_Output/${sampleId}/${sampleId}.starfusion.fusion_predictions.tsv ${PWD}/Final_Output/${sampleId}/${sampleId}.fusioncatcher.fusion-genes.txt ${PWD}/Final_Output/${sampleId}/${sampleId}.squid.fusions.annotated.txt ${PWD}/Final_Output/${sampleId}/${sampleId}.arriba.fusions.tsv
+	liftover.py ${params.chain_hg38_to_hg19} ${sampleId} ${PWD}/Final_Output/${sampleId}/${sampleId}.starfusion.fusion_predictions.tsv ${PWD}/Final_Output/${sampleId}/${sampleId}.fusioncatcher.fusion-genes.txt ${PWD}/Final_Output/${sampleId}/${sampleId}.squid.fusions.annotated.txt ${PWD}/Final_Output/${sampleId}/${sampleId}.arriba.fusions.tsv
 	"""
 }
 
 process METAFUSION {
 	tag "${sampleId}"
-	conda '/home/miniconda3/envs/new_base'
-	errorStrategy 'ignore'
-	publishDir "${PWD}/Final_Output/${sampleId}/", mode: 'copy', pattern: '*_metafuse_hg38.xlsx'
 	input:
 		tuple val(sampleId), file(cff_file)
 	output:
-		tuple val (sampleId), file ("*_metafuse_hg38.xlsx")
+		tuple val (sampleId), file("${sampleId}_final.n2.cluster.xlsx")
 	script:
 	"""
 	if [ -s ${cff_file} ];then 
 		mkdir ${sampleId}
-		path=`realpath ${sampleId}`
 		cp ${cff_file} ${sampleId}
-		${params.metafus_gen} ${sampleId}/${cff_file} ${sampleId} > ${sampleId}/temp.sh
-		# tool cutoff for docker 
-		tool_cutoff=\$(grep -i 'num_tools' ${sampleId}/temp.sh | sed 's:[^0-9]::g')
+		cd ${sampleId}
+
+		metafus_gen.sh ${sampleId}.cff ${sampleId} > temp.sh
+
+		# tool cutoff for docker
+		tool_cutoff=\$(grep -i 'num_tools' temp.sh | sed 's:[^0-9]::g')
+		num_tools=\$(awk 'BEGIN{FS="\\t"}{print \$11}' ${sampleId}.cff | uniq | sort | wc -l)
+
 		# No. of tools in the input cff file
-		num_tools=\$(awk 'BEGIN{FS="\t"}{print \$11}' ${cff_file} | uniq | sort | wc -l)
-		
 		if [ \${num_tools} -ge \${tool_cutoff} ]; then
-			docker run --entrypoint /bin/bash -v /home/diagnostics/pipelines/MetaFusion-Clinical:/Users/maposto/MetaFusion-Clinical -v \${path}:/Users/maposto/${sampleId} mapostolides/metafusion:readxl_writexl Users/maposto/${sampleId}/temp.sh
-		fi	
-
-		if [ -f ${sampleId}/final.n2.cluster.xlsx ];then
-			# Filtering the output of metafuse 
-			${params.filter_metafus} ${sampleId}/final.n2.cluster.xlsx ${sampleId}/${sampleId}_metafuse.xlsx
-
-			# Adding it to the clinical fusions table in the historical_database			
-			${params.metafus_append} ${sampleId}/${sampleId}_metafuse.xlsx > ${sampleId}/append_table.sh
-			docker run --entrypoint /bin/bash -v /home/diagnostics/pipelines/MetaFusion-Clinical:/Users/maposto/MetaFusion-Clinical -v \${path}:/Users/maposto/${sampleId} mapostolides/metafusion:readxl_writexl Users/maposto/${sampleId}/append_table.sh
-
-			# Converting the hg19 output to hg38
-			${params.convert_metafus} hg19 hg38 ${sampleId}/${sampleId}_metafuse.xlsx ${sampleId}_metafuse_hg38.xlsx
-		else
-			${params.empty_excel} ${sampleId}_metafuse_hg38.xlsx
-		fi		
+			bash temp.sh
+		fi
+		cp ${sampleId}/final.n2.cluster.xlsx ../${sampleId}_final.n2.cluster.xlsx
 	else
-		${params.empty_excel} ${sampleId}_metafuse_hg38.xlsx
+		touch ${sampleId}_final.n2.cluster.xlsx
 	fi
 	"""
+}
+
+process FILTER_METAFUSION {
+	tag "${sampleId}"
+	input:
+		tuple val(sampleId), file(final_cluster)
+	output:
+		tuple val (sampleId), file("${sampleId}_metafuse.xlsx")
+	script:
+	"""
+	if [ -s ${final_cluster} ];then 
+		filter_metafuse.py ${final_cluster} ${sampleId}_metafuse.xlsx
+	else
+		touch ${sampleId}_metafuse.xlsx
+	fi
+	"""
+}
+
+process UPDATE_METAFUSION_DB {
+	tag "${sampleId}"
+	input:
+		tuple val(sampleId), file(metafusion_excel)
+	output:
+		tuple val (sampleId), file("${sampleId}_metafuse.xlsx")
+	script:
+	"""
+	if [ -s ${metafusion_excel} ];then 
+		metafus_table_append.sh ${metafusion_excel} > append_table.sh
+		bash append_table.sh
+	else
+		echo "No metafusion output to append to database for ${sampleId}"
+	fi
+	"""
+}
+
+process LIFTOVER_METAFUSION {
+	tag "${sampleId}"
+	publishDir "${PWD}/Final_Output/${sampleId}/", mode: 'copy'
+	input:
+		tuple val(sampleId), file(metafusion_excel)
+	output:
+		tuple val (sampleId), file("${sampleId}_metafuse_hg38.xlsx")
+	script:
+	"""
+	if [ -s ${metafusion_excel} ];then 
+		convert_metafuse.py ${params.chain_hg19_to_hg38} ${sampleId}_metafuse.xlsx ${sampleId}_metafuse_hg38.xlsx
+	else
+		touch ${sampleId}_metafuse_hg38.xlsx
+	fi
+	"""	
 }
 
 process DASHBOARD {
@@ -193,7 +246,7 @@ process DASHBOARD {
 		tuple val (sampleId), file ("${sampleId}_dashboard.html")
 	script:
 	"""
-	python3 /home/diagnostics/pipelines/nf-core/rnafusion/bin/generate_Illumina_dashboard_v31.py --fusions ${PWD}/Final_Output/${sampleId}/${sampleId}.xlsx --cytoband ${params.cytoBand} --output ${sampleId}_dashboard.html
+	generate_Illumina_dashboard_v31.py --fusions ${PWD}/Final_Output/${sampleId}/${sampleId}.xlsx --cytoband ${params.cytoBand} --output ${sampleId}_dashboard.html
 	"""
 }
 
@@ -201,13 +254,49 @@ process VARDICT {
 	tag "${sampleId}"
 	label 'process_inter'
 	input:
-		tuple val (sampleId), file (sorted_bam), file (sorted_bam_bai), path(bedfile), path(squid_bam)
+		tuple val(sampleId), path(bedfile), path(squid_bam), file (gatk_bam), file (gatk_bam_bai)
+		path (GenFile)
+		path (GenInd)
 	output:
-		tuple val(sampleId), file ("${sampleId}.vardict.vcf.gz"), file("${sampleId}.vardict.vcf.gz.tbi")
+		tuple val(sampleId), file ("${sampleId}.vardict.vcf.gz")
 	script:
 	"""
-	VarDict -G ${params.genome} -f 0.05 -N ${sampleId} -b ${sorted_bam} -c 1 -S 2 -E 3 -g 4 -th ${task.cpus} -L 10000000 --verbose ${bedfile} | teststrandbias.R | var2vcf_valid.pl | gzip > ${sampleId}.vardict.vcf.gz
-	touch ${sampleId}.vardict.vcf.gz.tbi
+	java -Xmx${task.memory.toGiga()}g -jar /usr/local/share/vardict-java-1.8.3-0/lib/VarDict-1.8.3.jar -G ${GenFile} -th ${task.cpus} -f 0.05 -N ${sampleId} -b ${gatk_bam} -c 1 -S 2 -E 3 -g 4 -L 10000000 --verbose ${bedfile} | teststrandbias.R | var2vcf_valid.pl | gzip > ${sampleId}.vardict.vcf.gz
+	"""
+}
+
+process DEEPVARIANT {
+	tag "${sampleId}"
+	label 'process_inter'
+	input:
+		tuple val(sampleId), path(bedfile), path(squid_bam), file (gatk_bam), file (gatk_bam_bai)
+		path (GenFile)
+		path (GenInd)
+	output:
+		tuple val(sampleId), file ("${sampleId}.deepvar.vcf")
+	script:
+	"""
+	/opt/deepvariant/bin/run_deepvariant --model_type=WES --ref=${GenFile} --regions=${bedfile} --reads=${gatk_bam} --output_vcf=${sampleId}.deepvar.vcf --num_shards=${task.cpus}
+	"""
+}
+
+process MUTECT2 {
+	tag "${sampleId}"
+	label 'process_inter'
+	input:
+		tuple val(sampleId), path(bedfile), path(squid_bam), file (gatk_bam), file (gatk_bam_bai)
+		path (GenFile)
+		path (GenInd)
+		path (GenDict)
+		path (known_SNPs)
+		path (known_SNPs_index)		
+	output:
+		tuple val (sampleId), file ("${sampleId}_mutect_passed.vcf")
+	script:
+	"""
+	gatk --java-options "-Xmx${task.memory.toGiga()}g" Mutect2 -R ${GenFile} -I:tumor ${gatk_bam} -O ${sampleId}_mutect.vcf --germline-resource ${known_SNPs} -L ${bedfile} --native-pair-hmm-threads ${task.cpus}
+	gatk --java-options "-Xmx${task.memory.toGiga()}g" FilterMutectCalls -R ${GenFile} -V ${sampleId}_mutect.vcf -O ${sampleId}_mutect_filtered.vcf --stats ${sampleId}_mutect.vcf.stats
+	gatk --java-options "-Xmx${task.memory.toGiga()}g" SelectVariants -R ${GenFile} -V ${sampleId}_mutect_filtered.vcf --exclude-filtered -O ${sampleId}_mutect_passed.vcf
 	"""
 }
 
@@ -226,9 +315,9 @@ process VEP {
 
 	filter_vep -i ${sampleId}_vep.txt -o ${sampleId}_filtered.txt --filter "(CANONICAL is YES) and (AF < 0.01 or not AF)" --force_overwrite
 	grep -v "##" ${sampleId}_filtered.txt > ${sampleId}_vep_delheaders.txt
-	${params.extract_vep} ${sampleId}_vep_delheaders.txt ${sampleId}.extractedvepdelheaders.csv
-	${params.extract_vaf} ${vardict_vcf} ${sampleId}.extracted.csv
-	${params.mergeVardictVep} ${sampleId}.extracted.csv ${sampleId}.extractedvepdelheaders.csv ${sampleId}_vardict_vep.txt
+	extract_vepdata.py ${sampleId}_vep_delheaders.txt ${sampleId}.extractedvepdelheaders.csv
+	extract_vaf.py ${vardict_vcf} ${sampleId}.extracted.csv
+	mergeDeepVariantVep.py ${sampleId}.extracted.csv ${sampleId}.extractedvepdelheaders.csv ${sampleId}_vardict_vep.txt
 	"""
 }
 
@@ -243,17 +332,23 @@ workflow COVERAGE {
 	COUNTS(samples_ch)
 	BAM(samples_ch)
 	haplotypecaller_csv = VAR_RNA(samples_ch)
-	VARDICT(BAM.out.join(samples_ch))
+	VARDICT(samples_ch.join(haplotypecaller_csv.gatk_bam), genome_loc, index_file)
 	//VEP(VARDICT.out)
 	ANNOVAR_VARDICT(VARDICT.out, vardict)
 	FORMAT_VARDICT(ANNOVAR_VARDICT.out)
-	FILE_COPY(COUNTS.out.join(FORMAT_VARDICT.out.join(haplotypecaller_csv)))
+	DEEPVARIANT(samples_ch.join(haplotypecaller_csv.gatk_bam), genome_loc, index_file)
+	ANNOVAR_DEEPVARIANT(DEEPVARIANT.out, deepvariant)
+	MUTECT2(samples_ch.join(haplotypecaller_csv.gatk_bam), genome_loc, index_file, dict_file, known_SNPs, known_SNPs_index)
+	ANNOVAR_MUTECT2(MUTECT2.out, mutect2)
+	FORMAT_MUTECT2(ANNOVAR_MUTECT2.out)
+	FILE_COPY(COUNTS.out.join(FORMAT_VARDICT.out.join(haplotypecaller_csv.variants.join(FORMAT_MUTECT2.out))))
 	FUSVIZ_ALL_SAMPLES(FILE_COPY.out.collect())
 	CFF_FILEGEN(FILE_COPY.out)
 	METAFUSION(CFF_FILEGEN.out)
+	FILTER_METAFUSION(METAFUSION.out)
+	UPDATE_METAFUSION_DB(FILTER_METAFUSION.out)
+	LIFTOVER_METAFUSION(FILTER_METAFUSION.out)
 	DASHBOARD(FILE_COPY.out)
-
-
 }
 workflow.onComplete {
 	log.info ( workflow.success ? "\n\nDone! Output in the 'Final_Output' directory \n" : "Oops .. something went wrong" )

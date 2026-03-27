@@ -7,6 +7,6 @@ process FORMAT_HAPLOTYPECALLER {
 		tuple val (Sample), file("${Sample}_varRNA.csv")
 	script:
 	"""
-	${params.format_haplotypecaller} ${multianno_csv} ${Sample}_varRNA.csv
+	format_haplotypecaller.py ${multianno_csv} ${Sample}_varRNA.csv
 	"""
 }

@@ -1,0 +1,1 @@
+/home/diagnostics/pipelines/nf-core/rnafusion/scripts/SV_standard/SV_standard.pl
