@@ -15,6 +15,8 @@ index_file = file("${params.genome}.fai", checkIfExists: true)
 dict_file = file("${params.genome_dict}", checkIfExists: true)
 known_SNPs = file("${params.dbsnp}", checkIfExists: true)
 known_SNPs_index = file("${params.dbsnp_index}", checkIfExists: true)
+sv_lib = file("${params.sv_lib}", checkIfExists: true)
+sv_anno = file("${params.sv_anno}", checkIfExists: true)
 
 include { VAR_RNA } from '../workflows/var_rna.nf'
 include { ANNOVAR as ANNOVAR_VARDICT ; ANNOVAR as ANNOVAR_DEEPVARIANT ; ANNOVAR as ANNOVAR_MUTECT2 } from '../modules/local/annovar/annotate/main'
@@ -55,7 +57,7 @@ process FILE_COPY {
 	input:
 		tuple val (sampleId), file(counts_squid), file(vardict_csv), file(haplotypecaller_csv), file(mutect2_csv)
 	output:
-		val (sampleId)
+		val (sampleId), emit:sample_id
 	script:
 	"""
 	if [ -f ${PWD}/arriba/${sampleId}.arriba.fusions.tsv ]; then
@@ -95,6 +97,10 @@ process FILE_COPY {
 		cp -r ${PWD}/fusioninspector/${sampleId}.fusion_inspector_web.html ${PWD}/Final_Output/${sampleId}/
 	fi
 
+	cp  ${vardict_csv} ${PWD}/Final_Output/${sampleId}/
+	cp  ${haplotypecaller_csv} ${PWD}/Final_Output/${sampleId}/
+	cp  ${mutect2_csv} ${PWD}/Final_Output/${sampleId}/
+
 	merge-csv_v3.py ${sampleId} ${PWD}/Final_Output/${sampleId}/${sampleId}.xlsx \
 		${PWD}/Final_Output/${sampleId}/${sampleId}.counts_squid.bed \
 		${PWD}/Final_Output/${sampleId}/${sampleId}.arriba.fusions.tsv \
@@ -103,9 +109,9 @@ process FILE_COPY {
 		${PWD}/Final_Output/${sampleId}/${sampleId}.fusioncatcher.fusion-genes.txt \
 		${PWD}/Final_Output/${sampleId}/${sampleId}.fusioncatcher.summary.txt \
 		${PWD}/Final_Output/${sampleId}/${sampleId}.starfusion.fusion_predictions.tsv \
-		${vardict_csv} \
-		${haplotypecaller_csv} \
-		${mutect2_csv}
+		${PWD}/Final_Output/${sampleId}/${vardict_csv} \
+		${PWD}/Final_Output/${sampleId}/${haplotypecaller_csv} \
+		${PWD}/Final_Output/${sampleId}/${mutect2_csv}
 	"""
 }
 
@@ -113,7 +119,8 @@ process FUSVIZ_ALL_SAMPLES {
 	publishDir "${PWD}/Final_Output/", mode: 'copy', pattern: 'sv_output'
 	input:
 		val all_samples 
-
+		path (sv_lib)
+		path (sv_anno)
 	output:
 		path "sv_output"
 
@@ -139,9 +146,9 @@ process FUSVIZ_ALL_SAMPLES {
 		fi
 	done
 
-	export PERL5LIB="\$PERL5LIB:/home/diagnostics/pipelines/nf-core/rnafusion/scripts/SV_standard/lib"
+	export PERL5LIB="${sv_lib}"
 
-	perl ${params.sv_standard} --genome hg38 --type RNA --anno ${params.sv_anno} --input sv_input --output sv_output
+	SV_standard.pl --genome hg38 --type RNA --anno ${sv_anno} --input sv_input --output sv_output
 	"""
 }
 
@@ -178,9 +185,14 @@ process METAFUSION {
 
 		# No. of tools in the input cff file
 		if [ \${num_tools} -ge \${tool_cutoff} ]; then
-			bash temp.sh
+			bash temp.sh || true
 		fi
-		cp ${sampleId}/final.n2.cluster.xlsx ../${sampleId}_final.n2.cluster.xlsx
+		
+		if [ -f ${sampleId}/final.n2.cluster.xlsx ]; then
+			cp ${sampleId}/final.n2.cluster.xlsx ../${sampleId}_final.n2.cluster.xlsx
+		else
+			touch ../${sampleId}_final.n2.cluster.xlsx
+		fi
 	else
 		touch ${sampleId}_final.n2.cluster.xlsx
 	fi
@@ -342,13 +354,13 @@ workflow COVERAGE {
 	ANNOVAR_MUTECT2(MUTECT2.out, mutect2)
 	FORMAT_MUTECT2(ANNOVAR_MUTECT2.out)
 	FILE_COPY(COUNTS.out.join(FORMAT_VARDICT.out.join(haplotypecaller_csv.variants.join(FORMAT_MUTECT2.out))))
-	FUSVIZ_ALL_SAMPLES(FILE_COPY.out.collect())
-	CFF_FILEGEN(FILE_COPY.out)
+	FUSVIZ_ALL_SAMPLES(FILE_COPY.out.sample_id.collect(), sv_lib, sv_anno)
+	CFF_FILEGEN(FILE_COPY.out.sample_id)
 	METAFUSION(CFF_FILEGEN.out)
 	FILTER_METAFUSION(METAFUSION.out)
 	UPDATE_METAFUSION_DB(FILTER_METAFUSION.out)
 	LIFTOVER_METAFUSION(FILTER_METAFUSION.out)
-	DASHBOARD(FILE_COPY.out)
+	DASHBOARD(FILE_COPY.out.sample_id)
 }
 workflow.onComplete {
 	log.info ( workflow.success ? "\n\nDone! Output in the 'Final_Output' directory \n" : "Oops .. something went wrong" )

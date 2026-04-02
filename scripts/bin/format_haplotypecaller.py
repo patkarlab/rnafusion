@@ -36,9 +36,13 @@ df3=df.iloc[:,5:discarded_column]
 
 horizontal_stack = pd.concat([df1, df2, df3], axis=1)
 horizontal_stack['cosmic70']=horizontal_stack['cosmic70'].astype(str).str.replace(',' , ';')
-horizontal_stack['AAChange.refGene']=horizontal_stack['AAChange.refGene'].str.replace(',' , ';')
+horizontal_stack['AAChange.refGene'] = (
+    horizontal_stack['AAChange.refGene']
+    .astype(str)
+    .str.replace(',', ';')
+)
 horizontal_stack['AF_popmax']=horizontal_stack['AF_popmax']
-horizontal_stack['CLNSIG']=horizontal_stack['CLNSIG'].str.replace(',' , ';')
+horizontal_stack['CLNSIG']=horizontal_stack['CLNSIG']
 horizontal_stack.replace(to_replace='.', value='-1', inplace=True)
 horizontal_stack=horizontal_stack.reindex(columns = somatic_cols)
 horizontal_stack.to_csv(outfile, index=False)
