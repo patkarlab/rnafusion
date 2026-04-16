@@ -1311,31 +1311,31 @@ def main():
 
     # Arriba
     try:
-        fusion_dfs["Arriba"] = pd.read_excel(excel_file, sheet_name=".arriba.fusions")
+        fusion_dfs["Arriba"] = pd.read_excel(excel_file, sheet_name="arriba.fusions")
     except:
         print("Warning: .arriba.fusions sheet missing")
 
     # Squid
     try:
-        fusion_dfs["Squid"] = pd.read_excel(excel_file, sheet_name=".squid.fusions.annotated")
+        fusion_dfs["Squid"] = pd.read_excel(excel_file, sheet_name="squid.fusions.annotated")
     except:
         print("Warning: .squid.fusions.annotated sheet missing")
 
     # Pizzly
     try:
-        fusion_dfs["Pizzly"] = pd.read_excel(excel_file, sheet_name=".pizzly")
+        fusion_dfs["Pizzly"] = pd.read_excel(excel_file, sheet_name="pizzly")
     except:
         print("Warning: .pizzly sheet missing")
 
     # FusionCatcher
     try:
-        fusion_dfs["FusionCatcher"] = pd.read_excel(excel_file, sheet_name=".fusioncatcher.fusion-genes")
+        fusion_dfs["FusionCatcher"] = pd.read_excel(excel_file, sheet_name="fusioncatcher.fusion-genes")
     except:
         print("Warning: .fusioncatcher.fusion-genes sheet missing")
 
     # STAR-Fusion
     try:
-        fusion_dfs["STAR-Fusion"] = pd.read_excel(excel_file, sheet_name=".starfusion.fusion_predictions")
+        fusion_dfs["STAR-Fusion"] = pd.read_excel(excel_file, sheet_name="starfusion.fusion_predictions")
     except:
         print("Warning: .starfusion.fusion_predictions sheet missing")
 

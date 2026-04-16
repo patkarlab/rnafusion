@@ -14,6 +14,8 @@ include { BQSR } from '../modules/local/gatk/baserecalibrator/main'
 include { APPLY_BQSR } from '../modules/local/gatk/applybqsr/main'
 include { HAPLOTYPECALLER } from '../modules/local/gatk/haplotypecaller/main'
 include { ANNOVAR as ANNOVAR_HAPLOTYPECALLER } from '../modules/local/annovar/annotate/main'
+include { IGV_PREPROCESS as IGV_PREPROCESS_HAPLOTYPECALLER } from '../modules/local/annovar/igv_preprocess/main'
+include { IGV_REPORTS as IGV_REPORTS_HAPLOTYPECALLER } from '../modules/local/igv_reports/main'
 include { FORMAT_HAPLOTYPECALLER } from '../modules/local/python/format_haplotypecaller/main'
 
 workflow VAR_RNA {
@@ -28,6 +30,8 @@ workflow VAR_RNA {
 	HAPLOTYPECALLER(APPLY_BQSR.out.join(samples_ch), genome_loc, index_file, dict_file)
 	ANNOVAR_HAPLOTYPECALLER(HAPLOTYPECALLER.out, haplotypecaller)
 	FORMAT_HAPLOTYPECALLER(ANNOVAR_HAPLOTYPECALLER.out)
+	IGV_PREPROCESS_HAPLOTYPECALLER(HAPLOTYPECALLER.out, haplotypecaller)
+	IGV_REPORTS_HAPLOTYPECALLER(APPLY_BQSR.out.join(IGV_PREPROCESS_HAPLOTYPECALLER.out), genome_loc, index_file, haplotypecaller)
 	emit:
 		variants = FORMAT_HAPLOTYPECALLER.out
 		gatk_bam = APPLY_BQSR.out

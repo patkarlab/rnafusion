@@ -14,11 +14,9 @@ pizzly = args[6]
 fusioncatcher_fusion_genes = args[7]
 fusioncatcher_summary = args[8]
 starfusion = args[9]
-vardict = args[10]
-haplotypecaller = args[11]
-mutect2 = args[12]
+variants = args[10]
 
-csvfilenames=[ coverage, arriba, squid, pizzly, fusioncatcher_fusion_genes, fusioncatcher_summary, starfusion, vardict, haplotypecaller, mutect2]
+csvfilenames=[ coverage, arriba, squid, pizzly, fusioncatcher_fusion_genes, fusioncatcher_summary, starfusion, variants]
 writer = pd.ExcelWriter(outfile)
 for csvfilename in csvfilenames:
 	if (os.path.exists(csvfilename)) and (os.path.getsize(csvfilename) != 0):

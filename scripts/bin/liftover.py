@@ -3,6 +3,8 @@
 import os, sys, re, csv
 from pyliftover import LiftOver
 
+csv.field_size_limit(sys.maxsize)
+
 chainfile = sys.argv[1]				# hg38 to hg19 chain file
 sample_name = sys.argv[2]			# Sample name
 star_fusion_outfile = sys.argv[3]	# output file from star fusion

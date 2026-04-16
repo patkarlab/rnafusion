@@ -20,6 +20,8 @@ sv_anno = file("${params.sv_anno}", checkIfExists: true)
 
 include { VAR_RNA } from '../workflows/var_rna.nf'
 include { ANNOVAR as ANNOVAR_VARDICT ; ANNOVAR as ANNOVAR_DEEPVARIANT ; ANNOVAR as ANNOVAR_MUTECT2 } from '../modules/local/annovar/annotate/main'
+include { IGV_PREPROCESS as IGV_PREPROCESS_VARDICT ; IGV_PREPROCESS as IGV_PREPROCESS_MUTECT2 } from '../modules/local/annovar/igv_preprocess/main'
+include { IGV_REPORTS as IGV_REPORTS_VARDICT ; IGV_REPORTS as IGV_REPORTS_MUTECT2 } from '../modules/local/igv_reports/main'
 include { FORMAT_VARDICT } from '../modules/local/python/format_vardict/main'
 include { FORMAT_MUTECT2 } from '../modules/local/python/format_mutect2/main'
 
@@ -97,9 +99,8 @@ process FILE_COPY {
 		cp -r ${PWD}/fusioninspector/${sampleId}.fusion_inspector_web.html ${PWD}/Final_Output/${sampleId}/
 	fi
 
-	cp  ${vardict_csv} ${PWD}/Final_Output/${sampleId}/
-	cp  ${haplotypecaller_csv} ${PWD}/Final_Output/${sampleId}/
-	cp  ${mutect2_csv} ${PWD}/Final_Output/${sampleId}/
+	merge_variants.py ${sampleId}_variants.csv ${mutect2_csv} ${vardict_csv} ${haplotypecaller_csv}
+	cp  ${sampleId}_variants.csv ${PWD}/Final_Output/${sampleId}/
 
 	merge-csv_v3.py ${sampleId} ${PWD}/Final_Output/${sampleId}/${sampleId}.xlsx \
 		${PWD}/Final_Output/${sampleId}/${sampleId}.counts_squid.bed \
@@ -109,9 +110,7 @@ process FILE_COPY {
 		${PWD}/Final_Output/${sampleId}/${sampleId}.fusioncatcher.fusion-genes.txt \
 		${PWD}/Final_Output/${sampleId}/${sampleId}.fusioncatcher.summary.txt \
 		${PWD}/Final_Output/${sampleId}/${sampleId}.starfusion.fusion_predictions.tsv \
-		${PWD}/Final_Output/${sampleId}/${vardict_csv} \
-		${PWD}/Final_Output/${sampleId}/${haplotypecaller_csv} \
-		${PWD}/Final_Output/${sampleId}/${mutect2_csv}
+		${PWD}/Final_Output/${sampleId}/${sampleId}_variants.csv \
 	"""
 }
 
@@ -361,6 +360,10 @@ workflow COVERAGE {
 	UPDATE_METAFUSION_DB(FILTER_METAFUSION.out)
 	LIFTOVER_METAFUSION(FILTER_METAFUSION.out)
 	DASHBOARD(FILE_COPY.out.sample_id)
+	IGV_PREPROCESS_VARDICT(VARDICT.out, vardict)
+	IGV_PREPROCESS_MUTECT2(MUTECT2.out, mutect2)
+	IGV_REPORTS_VARDICT(haplotypecaller_csv.gatk_bam.join(IGV_PREPROCESS_VARDICT.out), genome_loc, index_file, vardict)
+	IGV_REPORTS_MUTECT2(haplotypecaller_csv.gatk_bam.join(IGV_PREPROCESS_MUTECT2.out), genome_loc, index_file, mutect2)
 }
 workflow.onComplete {
 	log.info ( workflow.success ? "\n\nDone! Output in the 'Final_Output' directory \n" : "Oops .. something went wrong" )

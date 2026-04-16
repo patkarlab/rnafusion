@@ -3,6 +3,8 @@
 import os, sys, re, csv
 from pyliftover import LiftOver
 
+csv.field_size_limit(sys.maxsize)
+
 input_build = sys.argv[1]			# assembly version of the input files
 output_build = sys.argv[2]			# assembly version of the output
 sample_name = sys.argv[3]			# Sample name
