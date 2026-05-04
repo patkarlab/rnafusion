@@ -22,7 +22,7 @@ for i in `cat ${samplesheet}`
 do
 	bed=$( echo ${i} | awk 'BEGIN{FS="-";OFS=""}{ $1="" ; print tolower($2)}' )
 	case $bed in
-		"ball" | "kmt2a" | "ball_tall" | "etv6runx1nv2" | "tcf3pbx1nv2" | "kmt2aaff1nv2" | "pax5etv6" | "etv6abl1" | "pax5eln" | "dux4igh" | "ebf1pdgfrb" | "ighdux4" | "tcf3pbx1" | "p190" | "etv6runx1" | "p210" | "etv6runx1i" | "kmt2aaff1" | "mef2dbcl9" | "inv2" | "inv1" | "lsc" | "fusionvallsc" | "csfir" | "mef2d" | "lyfu" | "etv6" | "runx1" | "abl1" | "abl2" | "dux4" | "fgfr1" | "jak2" | "pax5" | "tcf3" | "crlf2" | "pdgfrb" | "abl" | "igh" | "znf384" | "epor")
+		"ball" | "kmt2a" | "ball_tall" | "etv6runx1nv2" | "tcf3pbx1nv2" | "kmt2aaff1nv2" | "pax5etv6" | "etv6abl1" | "pax5eln" | "dux4igh" | "ebf1pdgfrb" | "ighdux4" | "tcf3pbx1" | "p190" | "etv6runx1" | "p210" | "etv6runx1i" | "kmt2aaff1" | "mef2dbcl9" | "inv2" | "inv1" | "lsc" | "fusionvallsc" | "csfir" | "mef2d" | "lyfu" | "etv6" | "runx1" | "abl1" | "abl2" | "dux4" | "fgfr1" | "jak2" | "pax5" | "tcf3" | "crlf2" | "pdgfrb" | "abl" | "igh" | "znf384" | "epor" | "flt3")
 		bedfile="/home/diagnostics/pipelines/nf-core/rnafusion/bedfiles/RADICALv3_hg38_sortd.bed"
 		;;
 		"tall")
