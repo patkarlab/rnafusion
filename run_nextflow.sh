@@ -52,6 +52,9 @@ do
 		"radical")
 		bedfile="/home/diagnostics/pipelines/nf-core/rnafusion/bedfiles/RADICALv3_hg38_sortd.bed"
 		;;
+		"fusionalp")
+		bedfile="/home/diagnostics/pipelines/nf-core/rnafusion/bedfiles/FUSIONALP_sortd.bed"
+		;;
 		#"newalp" | "newalp_rna" | "rna")
 		#bedfile="/home/diagnostics/pipelines/nf-core/rnafusion/bedfiles/Leukemia_Panel_Myeloid_2023_Feb_hg38_sortd.bed"
 		#;;

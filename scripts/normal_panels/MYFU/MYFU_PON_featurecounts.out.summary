@@ -1,0 +1,15 @@
+Status	Normal_1.bam	Normal_2.bam	Normal_3.bam	Normal_4.bam	Normal_5.bam	Normal_6.bam	Normal_7.bam	Normal_8.bam	Normal_9.bam	Normal_10.bam
+Assigned	923849	1602263	1253015	1819632	1936903	2121230	4263056	1930624	3810753	644953
+Unassigned_Unmapped	0	0	0	0	0	0	0	0	0	0
+Unassigned_Read_Type	0	0	0	0	0	0	0	0	0	0
+Unassigned_Singleton	0	0	0	0	0	0	0	0	0	0
+Unassigned_MappingQuality	0	0	0	0	0	0	0	0	0	0
+Unassigned_Chimera	0	0	0	0	0	0	0	0	0	0
+Unassigned_FragmentLength	0	0	0	0	0	0	0	0	0	0
+Unassigned_Duplicate	0	0	0	0	0	0	0	0	0	0
+Unassigned_MultiMapping	4861558	7345992	5237182	5513742	3219576	7022408	3906292	4043334	67150	11419724
+Unassigned_Secondary	0	0	0	0	0	0	0	0	0	0
+Unassigned_NonSplit	0	0	0	0	0	0	0	0	0	0
+Unassigned_NoFeatures	36228	62595	22344	45450	39450	56523	128534	51606	92481	16005
+Unassigned_Overlapping_Length	0	0	0	0	0	0	0	0	0	0
+Unassigned_Ambiguity	27499	92106	66467	74524	96593	115505	162288	107660	566076	34872

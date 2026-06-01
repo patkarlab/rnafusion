@@ -1,0 +1,11 @@
+#Renaming bams
+
+./rename.sh
+
+
+#Generating PON featurecounts
+
+docker run -v /home/diagnostics/pipelines/nf-core/rnafusion/:/home/diagnostics/pipelines/nf-core/rnafusion/ -w $PWD -u $(id -u):$(id -g) -it wailz/featurecounts:2.0.3 featureCounts -p -a /home/diagnostics/pipelines/nf-core/rnafusion/references/ensembl/Homo_sapiens.GRCh38.102.gtf -T 64 -o MYFU_PON_featurecounts.out Normal_{1..10}.bam
+
+#Removing .bam extension from column headers
+sed -Ei '2 s/\.bam//g' MYFU_PON_featurecounts.out

@@ -17,6 +17,14 @@ known_SNPs = file("${params.dbsnp}", checkIfExists: true)
 known_SNPs_index = file("${params.dbsnp_index}", checkIfExists: true)
 sv_lib = file("${params.sv_lib}", checkIfExists: true)
 sv_anno = file("${params.sv_anno}", checkIfExists: true)
+ensembl_gtf = file("${params.ensembl_gtf}", checkIfExists: true)
+pon_myfu = file("${params.pon_myfu}", checkIfExists: true)
+pon_ball = file("${params.pon_ball}", checkIfExists: true)
+pon_tall = file("${params.pon_tall}", checkIfExists: true)
+gene_map = file("${params.gene_map}", checkIfExists: true)
+myfu_genes = file("${params.myfu_genes}", checkIfExists: true)
+ball_genes = file("${params.ball_genes}", checkIfExists: true)
+tall_genes = file("${params.tall_genes}", checkIfExists: true)
 
 include { VAR_RNA } from '../workflows/var_rna.nf'
 include { ANNOVAR as ANNOVAR_VARDICT ; ANNOVAR as ANNOVAR_DEEPVARIANT ; ANNOVAR as ANNOVAR_MUTECT2 } from '../modules/local/annovar/annotate/main'
@@ -24,7 +32,9 @@ include { IGV_PREPROCESS as IGV_PREPROCESS_VARDICT ; IGV_PREPROCESS as IGV_PREPR
 include { IGV_REPORTS as IGV_REPORTS_VARDICT ; IGV_REPORTS as IGV_REPORTS_MUTECT2 } from '../modules/local/igv_reports/main'
 include { FORMAT_VARDICT } from '../modules/local/python/format_vardict/main'
 include { FORMAT_MUTECT2 } from '../modules/local/python/format_mutect2/main'
-
+include { FEATURECOUNTS } from '../modules/local/featurecounts/generate_countmatrix/main'
+include { MERGE_FEATURECOUNTS } from '../modules/local/python/merge_featurecounts/main'
+include { HEATMAP_GEN } from '../modules/local/python/heatmap/main'
 
 process COUNTS {
 	tag "${sampleId}"
@@ -364,6 +374,9 @@ workflow COVERAGE {
 	IGV_PREPROCESS_MUTECT2(MUTECT2.out, mutect2)
 	IGV_REPORTS_VARDICT(haplotypecaller_csv.gatk_bam.join(IGV_PREPROCESS_VARDICT.out), genome_loc, index_file, vardict)
 	IGV_REPORTS_MUTECT2(haplotypecaller_csv.gatk_bam.join(IGV_PREPROCESS_MUTECT2.out), genome_loc, index_file, mutect2)
+	//FEATURECOUNTS(BAM.out, ensembl_gtf)
+	//MERGE_FEATURECOUNTS(samples_ch, FEATURECOUNTS.out, pon_myfu, pon_ball, pon_tall)
+	//HEATMAP_GEN(MERGE_FEATURECOUNTS.out, gene_map, myfu_genes, ball_genes, tall_genes)
 }
 workflow.onComplete {
 	log.info ( workflow.success ? "\n\nDone! Output in the 'Final_Output' directory \n" : "Oops .. something went wrong" )
