@@ -15,7 +15,6 @@ do
 done
 
 nextflow run ./ --all --input samplesheet.csv --outdir /home/diagnostics/pipelines/nf-core/rnafusion --genome GRCh38 -profile docker -resume -with-report report-config.html > ${log_file}
-#nextflow run ./ --all --input samplesheet.csv --outdir /home/diagnostics/pipelines/nf-core/rnafusion --genome GRCh38 -profile docker > ${log_file}
 
 > ${samplesheet}_bedmap
 for i in `cat ${samplesheet}`
@@ -52,7 +51,7 @@ do
 		"radical")
 		bedfile="/home/diagnostics/pipelines/nf-core/rnafusion/bedfiles/RADICALv3_hg38_sortd.bed"
 		;;
-		"fusionalp")
+		"fusionalp" | "fusion")
 		bedfile="/home/diagnostics/pipelines/nf-core/rnafusion/bedfiles/FUSIONALP_sortd.bed"
 		;;
 		#"newalp" | "newalp_rna" | "rna")
@@ -66,16 +65,3 @@ echo "${i},${bedfile},$PWD/star_for_squid/${i}.Aligned.sortedByCoord.out.bam" >>
 done
 
 nextflow -C /home/diagnostics/pipelines/nf-core/rnafusion/scripts/custom.config run /home/diagnostics/pipelines/nf-core/rnafusion/scripts/custom_v2.nf -entry COVERAGE -profile docker -resume --input ${samplesheet}_bedmap > ${log_file}.coverage
-
-#nextflow -C /home/diagnostics/pipelines/nf-core/rnafusion/scripts/custom.config run /home/diagnostics/pipelines/nf-core/rnafusion/scripts/custom_v2.nf -entry COVERAGE --input ${samplesheet}_bedmap > ${log_file}.coverage
-
-#for samples in `cat ${samplesheet}`
-#do
-#	cp arriba/${samples}.arriba.fusions.tsv arriba_visualisation/${samples}.pdf Final_Output/${samples}
-#	cp squid/${samples}.squid.*.txt Final_Output/${samples}
-#	cp pizzly/${samples}.pizzly.txt Final_Output/${samples}
-#	cp fusioncatcher/${samples}.fusioncatcher.fusion-genes.txt fusioncatcher/${samples}.fusioncatcher.summary.txt Final_Output/${samples}
-#	cp starfusion/${samples}.starfusion.fusion_predictions.tsv Final_Output/${samples}
-#	cp -r fusionreport/${samples} Final_Output/${samples}/${samples}_fusionreport
-#	cp -r fusioninspector/${samples}.fusion_inspector_web.html Final_Output/${samples}/
-#done
