@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/bin/env python
 
 import pandas as pd
 import os, sys
@@ -22,9 +22,15 @@ for csvfilename in csvfilenames:
 	if (os.path.exists(csvfilename)) and (os.path.getsize(csvfilename) != 0):
 		sheetname=os.path.split(csvfilename)[1]
 		if csvfilename.endswith(".csv"):
-			df = pd.read_csv(csvfilename, sep=",")
+			try:
+				df = pd.read_csv(csvfilename, sep=",")
+			except pd.errors.EmptyDataError:
+				df = pd.DataFrame()
 		else:
-			df = pd.read_csv(csvfilename, sep="\t")
+			try:
+				df = pd.read_csv(csvfilename, sep="\t")
+			except pd.errors.EmptyDataError:
+				df = pd.DataFrame()
 		print('process file:', csvfilename, 'shape:', df.shape)
 		new_sheet_name = os.path.splitext(sheetname)[0]
 		new_sheet_name = re.sub (sample,"", new_sheet_name, flags = re.IGNORECASE).strip("._")

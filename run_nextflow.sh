@@ -51,7 +51,7 @@ do
 		"radical")
 		bedfile="/home/diagnostics/pipelines/nf-core/rnafusion/bedfiles/RADICALv3_hg38_sortd.bed"
 		;;
-		"fusionalp" | "fusion")
+		"fusionalp" | "fusion" | "fusioinalp")
 		bedfile="/home/diagnostics/pipelines/nf-core/rnafusion/bedfiles/FUSIONALP_sortd.bed"
 		;;
 		#"newalp" | "newalp_rna" | "rna")
